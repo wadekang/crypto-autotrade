@@ -7,6 +7,7 @@ import asyncio
 import websockets
 import datetime
 import logging
+import sys
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -60,9 +61,12 @@ def get_start_time(ticker, interval='minute5'):
 
 async def main():
     tickers = get_tickers()
-    # log = log_init()
 
     upbit = pyupbit.Upbit(access, secret)
+    balance = upbit.get_balance("KRW")
+    if balance == None:
+        log.error('api key error')
+        sys.exit('api key error')
 
     log.info('autotrade start')
 
@@ -89,19 +93,19 @@ async def main():
                     current_prices = await get_current_price(tickers)
                     for ticker in tickers:
                         if current_prices[ticker] >= close_prices[ticker] * target:
-                            log.info('detected:', ticker, 'target:', close_prices[ticker] * target, 'cur:', current_prices[ticker])
+                            log.info('detected: %s, target: %s, cur: %s', ticker, close_prices[ticker]*target, current_prices[ticker])
                             krw = upbit.get_balance("KRW")
                             if krw > 7000:
                                 result = upbit.buy_market_order(ticker, krw)
-                                log.info('buy:', result)
+                                log.info('buy: %s', result)
                                 buy_crpyto = ticker
                                 break
 
-            else: # last 5 seconds -> update close_prices
+            else: # last 5 seconds -> sell and update close_prices
                 if not buy_crpyto is None:
                     crypto_balance = upbit.get_balance(buy_crpyto)
                     result = upbit.sell_market_order(buy_crpyto, crypto_balance)
-                    log.info('sell:', result)
+                    log.info('sell: %s', result)
                     buy_crpyto = None
 
                 close_prices = await get_current_price(tickers)
