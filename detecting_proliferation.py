@@ -26,7 +26,10 @@ def get_tickers():
 
     tickers =  requests.get(url, headers=headers).json()
 
-    remove_list = ['KRW-BTT', 'KRW-XEC']
+    remove_list = ['KRW-SNT', 'KRW-XEM', 'KRW-XLM', 'KRW-ARDR', 'KRW-TRX', 'KRW-SC', 'KRW-ZIL', 'KRW-LOOM', 'KRW-IOST', 
+    'KRW-RFR', 'KRW-IQ', 'KRW-MFT', 'KRW-UPP', 'KRW-QKC', 'KRW-MOC', 'KRW-TFUEL', 'KRW-ANKR', 'KRW-AERGO', 'KRW-TT', 'KRW-CRE', 
+    'KRW-MBL', 'KRW-HBAR', 'KRW-MED', 'KRW-STPT', 'KRW-ORBS', 'KRW-VET', 'KRW-CHZ', 'KRW-STMX', 'KRW-DKA', 'KRW-AHT', 'KRW-JST', 
+    'KRW-MVL', 'KRW-SSX', 'KRW-META', 'KRW-FCT2', 'KRW-HUM']
     return [data['market'] for data in tickers if data['market'].startswith('KRW') and data['market'] not in remove_list]
 
 async def get_current_price(tickers):
@@ -74,7 +77,7 @@ async def main():
     close_prices = None
     current_prices = None
     buy_crpyto = None
-    target = 1.02
+    target = 1.015
 
     while True:
         try:
@@ -93,10 +96,10 @@ async def main():
                     current_prices = await get_current_price(tickers)
                     for ticker in tickers:
                         if current_prices[ticker] >= close_prices[ticker] * target:
-                            log.info(f"{ticker}: detected, open={close_prices[ticker]}, cur={current_prices[ticker]}")
+                            log.info(f"{ticker}: detected, open={close_prices[ticker]}, target={close_prices[ticker] * target}, cur={current_prices[ticker]}")
                             krw = upbit.get_balance("KRW")
                             if krw > 7000:
-                                result = upbit.buy_market_order(ticker, krw)
+                                result = upbit.buy_market_order(ticker, krw*0.9995)
                                 log.info(f"buy: {result}")
                                 buy_crpyto = ticker
                                 break
@@ -104,7 +107,7 @@ async def main():
             else: # last 5 seconds -> sell and update close_prices
                 if not buy_crpyto is None:
                     crypto_balance = upbit.get_balance(buy_crpyto)
-                    result = upbit.sell_market_order(buy_crpyto, crypto_balance)
+                    result = upbit.sell_market_order(buy_crpyto, crypto_balance*0.9995)
                     log.info(f"sell: {result}")
                     buy_crpyto = None
 
