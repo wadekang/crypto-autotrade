@@ -29,7 +29,10 @@ def get_tickers():
 
     tickers =  requests.get(url, headers=headers).json()
 
-    remove_list = ['KRW-BTT', 'KRW-XEC']
+    remove_list = ['KRW-SNT', 'KRW-XEM', 'KRW-XLM', 'KRW-ARDR', 'KRW-TRX', 'KRW-SC', 'KRW-ZIL', 'KRW-LOOM', 'KRW-IOST', 
+    'KRW-RFR', 'KRW-IQ', 'KRW-MFT', 'KRW-UPP', 'KRW-QKC', 'KRW-MOC', 'KRW-TFUEL', 'KRW-ANKR', 'KRW-AERGO', 'KRW-TT', 'KRW-CRE', 
+    'KRW-MBL', 'KRW-HBAR', 'KRW-MED', 'KRW-STPT', 'KRW-ORBS', 'KRW-VET', 'KRW-CHZ', 'KRW-STMX', 'KRW-DKA', 'KRW-AHT', 'KRW-JST', 
+    'KRW-MVL', 'KRW-SSX', 'KRW-META', 'KRW-FCT2', 'KRW-HUM']
     
     ticker_market = []
     ticker_kor = dict([])
@@ -84,7 +87,7 @@ async def main():
     tick_for_time = 'KRW-XRP'
     close_prices = None
     current_prices = None
-    target = 1.01
+    target = 1.015
     send_list = []
 
     while True:
@@ -105,8 +108,8 @@ async def main():
                     for ticker in tickers:
                         if ticker not in send_list and current_prices[ticker] >= close_prices[ticker] * target:
                             send_list.append(ticker)
-                            ratio = current_prices[ticker] / close_prices[ticker]
-                            log.info(f"{ticker}, {tickers_kor[ticker]}: {ratio}% rise, open={close_prices[ticker]}, cur={current_prices[ticker]}")
+                            ratio = round((current_prices[ticker] / close_prices[ticker] * 100) - 100, 1)
+                            log.info(f"{ticker}, {tickers_kor[ticker]}: {ratio}% rise, open={close_prices[ticker]}, target={close_prices[ticker]*target}, cur={current_prices[ticker]}")
                             
                             # notification code
                             message = f"{ticker}, {tickers_kor[ticker]}: {ratio}% rise"
