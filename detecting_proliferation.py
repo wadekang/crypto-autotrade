@@ -47,11 +47,11 @@ async def get_current_price(tickers):
         subscribe_data = json.dumps(subscribe_fmt)
         await websocket.send(subscribe_data)
 
-        for ticker in tickers:
+        for i in range(len(tickers)):
             data = await websocket.recv()
             data = json.loads(data)
             
-            ret[ticker] = data['tp']
+            ret[data['cd']] = data['tp']
     
     return ret
 
@@ -93,11 +93,11 @@ async def main():
                     current_prices = await get_current_price(tickers)
                     for ticker in tickers:
                         if current_prices[ticker] >= close_prices[ticker] * target:
-                            log.info('detected: %s, target: %s, cur: %s', ticker, close_prices[ticker]*target, current_prices[ticker])
+                            log.info(f"{ticker}: detected, open={close_prices[ticker]}, cur={current_prices[ticker]}")
                             krw = upbit.get_balance("KRW")
                             if krw > 7000:
                                 result = upbit.buy_market_order(ticker, krw)
-                                log.info('buy: %s', result)
+                                log.info(f"buy: {result}")
                                 buy_crpyto = ticker
                                 break
 
@@ -105,15 +105,15 @@ async def main():
                 if not buy_crpyto is None:
                     crypto_balance = upbit.get_balance(buy_crpyto)
                     result = upbit.sell_market_order(buy_crpyto, crypto_balance)
-                    log.info('sell: %s', result)
+                    log.info(f"sell: {result}")
                     buy_crpyto = None
 
                 close_prices = await get_current_price(tickers)
                 # log.info('close_prices modify')
-            time.sleep(0.5)
+            time.sleep(0.7)
         except Exception as e:
             log.error('exception', e)
-            time.sleep(0.5)
+            time.sleep(0.7)
 
 if __name__ == "__main__":
     asyncio.run(main())
