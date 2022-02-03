@@ -5,7 +5,6 @@ import asyncio
 import json
 import sys
 import time
-import datetime
 
 log = logging.getLogger()
 log.setLevel(logging.INFO)
@@ -50,10 +49,6 @@ async def get_current_price(ticker):
     
     return ret
 
-def get_start_time(ticker):
-    df = pyupbit.get_ohlcv(ticker, interval=INTERVAL, count=1)
-    return df.index[0]
-
 def stochastic_rsi(ticker):
     df = pyupbit.get_ohlcv(ticker, INTERVAL, count=35)
     delta = df['close'].diff(1).dropna()
@@ -71,10 +66,10 @@ def stochastic_rsi(ticker):
     min_val = df['rsi'].rolling(window=PERIOD, center=False).min()
     max_val = df['rsi'].rolling(window=PERIOD, center=False).max()
     stoch = ((df['rsi'] - min_val) / (max_val - min_val)) * 100
-    K = round(stoch.rolling(window=SMOOTH, center=False).mean(), 2)
+    K = stoch.rolling(window=SMOOTH, center=False).mean()
     # D = round(K.rolling(window=SMOOTH, center=False).mean(), 2)
 
-    return K[-4:-1]
+    return K[-5:]
 
 async def main():
     upbit = pyupbit.Upbit(access, secret)
@@ -89,14 +84,25 @@ async def main():
     buy_price = None
     stoch_rsi = None
 
+    log.info('waiting start')
+    while True:
+        stoch_rsi = stochastic_rsi(TARGET_CRYP)
+        cur = stoch_rsi[-1]
+        before = stoch_rsi[-2]
+
+        if cur < before - 3:
+            log.info('detecting start')
+            break
+        time.sleep(2)
+
     while True:
         try:
             stoch_rsi = stochastic_rsi(TARGET_CRYP)
             cur = stoch_rsi[-1]
-            before = stoch_rsi[-2]
 
             if buy_cryp:
-                if cur <= before - 3:
+                before_max = max(stoch_rsi[:-1])
+                if cur <= before_max - 3:
                     cryp = upbit.get_balance(TARGET_CRYP)
 
                     if cryp > 0:
@@ -115,7 +121,8 @@ async def main():
                             log.info(f"stop loss: {result}")
                             buy_cryp = False
             else:
-                if cur >= before + 3:
+                before_min = min(stoch_rsi[:-1])
+                if cur >= before_min + 3:
                     krw = upbit.get_balance('KRW')
 
                     if krw > 21000:
