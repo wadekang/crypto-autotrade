@@ -20,8 +20,8 @@ secret = "apikey"
 TARGET_CRYP = 'KRW-SAND'
 INTERVAL = 'minute15'
 
-TARGET_RATE = 1.011
-LIMIT = 0.993
+TARGET_RATE = 1.006
+LIMIT = 0.985
 
 PERIOD = 14
 SMOOTH = 3
@@ -67,9 +67,9 @@ def stochastic_rsi(ticker):
     max_val = df['rsi'].rolling(window=PERIOD, center=False).max()
     stoch = ((df['rsi'] - min_val) / (max_val - min_val)) * 100
     K = stoch.rolling(window=SMOOTH, center=False).mean()
-    # D = round(K.rolling(window=SMOOTH, center=False).mean(), 2)
+    D = K.rolling(window=SMOOTH, center=False).mean()
 
-    return K[-5:]
+    return K[-2:], D[-2:]
 
 async def main():
     upbit = pyupbit.Upbit(access, secret)
@@ -82,33 +82,37 @@ async def main():
 
     buy_cryp = False
     buy_price = None
-    stoch_rsi = None
+    buy_cond = False
 
     log.info('waiting start')
     while True:
-        stoch_rsi = stochastic_rsi(TARGET_CRYP)
-        cur = stoch_rsi[-1]
-        before = stoch_rsi[-2]
+        K, D = stochastic_rsi(TARGET_CRYP)
 
-        if cur < before - 3:
+        if K[-2] < 5.0 or K[-1] < 5.0:
             log.info('detecting start')
             break
         time.sleep(2)
 
     while True:
         try:
-            stoch_rsi = stochastic_rsi(TARGET_CRYP)
-            cur = stoch_rsi[-1]
+            K, D = stochastic_rsi(TARGET_CRYP)
+
+            if not buy_cond:
+                if K[-2] < 2.0:
+                    buy_cond = True
+                else:
+                    time.sleep(1)
+                    continue    
 
             if buy_cryp:
-                before_max = max(stoch_rsi[:-1])
-                if cur <= before_max - 3:
+                if K[-1] < D[-1]:
                     cryp = upbit.get_balance(TARGET_CRYP)
 
                     if cryp > 0:
                         result = upbit.sell_market_order(TARGET_CRYP, cryp)
-                        log.info(f"sell: {result}")
+                        log.info(f"sell: {K[-1]}, {D[-1]}")
                         buy_cryp = False
+                        buy_cond = False
 
                 else:
                     current_price = await get_current_price(TARGET_CRYP)
@@ -118,17 +122,25 @@ async def main():
 
                         if cryp > 0:
                             result = upbit.sell_market_order(TARGET_CRYP, cryp)
-                            log.info(f"stop loss: {result}")
+                            log.info(f"stop loss: {current_price}, {buy_price}")
                             buy_cryp = False
+                            buy_cond = False
+                    elif current_price > buy_price * TARGET_RATE: # take profit
+                        cryp = upbit.get_balance(TARGET_CRYP)
+
+                        if cryp > 0:
+                            result = upbit.sell_market_order(TARGET_CRYP, cryp)
+                            log.info(f"take profit: {current_price}, {buy_price}")
+                            buy_cryp = False
+                            buy_cond = False
             else:
-                before_min = min(stoch_rsi[:-1])
-                if cur >= before_min + 3:
+                if K[-1] > D[-1]:
                     krw = upbit.get_balance('KRW')
 
-                    if krw > 21000:
+                    if krw > 11000:
                         buy_price = await get_current_price(TARGET_CRYP)
-                        result = upbit.buy_market_order(TARGET_CRYP, 20000)
-                        log.info(f"buy: {result}")
+                        result = upbit.buy_market_order(TARGET_CRYP, 10000)
+                        log.info(f"buy: {buy_price}, 10000, {K[-1]}, {D[-1]}")
                         buy_cryp = True
 
             time.sleep(1)
